@@ -175,12 +175,53 @@ data_bw %>%
   
 ```
 
+## 3.4 manipulate three models and get the results
 Compare your model to two others:
+1.One using _length at birth_ and _gestational age_ as predictors (main effects only)
+2.One using _head circumference_, _length_, _sex_, and _all interactions_ (including the three-way interaction) between these
 
-One using length at birth and gestational age as predictors (main effects only)
-One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+```{r}
+fit_lg = lm(bwt ~ gaweeks + blength, data =data_bw)
+summary(fit_lg)
+fit_lg %>% 
+  broom::glance()%>% 
+  broom::tidy()
+
+fit_all = lm(bwt ~ bhead * blength * babysex, data = data_bw)
+summary(fit_all)
+fit_lg %>% 
+  broom::glance()%>% 
+  broom::tidy()
+```
 
 ```{r}
 
-```
+cv_df =
+  crossv_mc(data_bw, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+cv_df = 
+  cv_df %>% 
+  mutate(
+    model_bl = map(train, ~lm(bwt ~ bhead + blength, data = .x)),
+    model_lg = map(train, ~lm(bwt ~ gaweeks + blength, data = .x)),
+    model_all = map(train, ~lm(bwt ~ bhead * blength * babysex, data = .x))) %>% 
+  mutate(
+    rmse_bl = map2_dbl(model_bl, test, ~rmse(model = .x, data = .y)),
+    rmse_lg = map2_dbl(model_lg, test, ~rmse(model = .x, data = .y)),
+    rmse_all = map2_dbl(model_all, test, ~rmse(model = .x, data = .y)))
+cv_df
 
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+we can see the first model are the best among three models.
