@@ -1,0 +1,54 @@
+---
+title: "Simple document"
+output: github_document
+
+    
+---
+```{r,echo=FALSE, message=FALSE}
+library(tidyverse)
+library(patchwork)
+library(p8105.datasets)
+```
+
+#let's begin
+```{r}
+library(tidyverse)
+library(modelr)
+library(mgcv)
+```
+```{r}
+set.seed(1)
+```
+
+#problem2
+Create a _city_state_ variable (e.g. “Baltimore, MD”), and _a binary variable_ indicating whether the homicide is solved. 
+```{r}
+homicide = read.csv("./homicide-data.csv") 
+
+homicide=homicide%>% 
+  na.omit() %>% 
+  mutate(
+    city_state=str_c(city,",",state)
+  ) %>% 
+  mutate(solve_sit = case_when(
+    disposition== "Closed by arrest" ~ 1,
+    disposition== "Open/No arrest" ~ 0)) %>% 
+ mutate(
+   unsolved = case_when(
+     disposition== "Closed by arrest" ~ 0,
+    disposition== "Open/No arrest" ~ 1))%>% 
+  na.omit() 
+                          
+```
+
+
+
+Omit cities Dallas, TX; Phoenix, AZ; and Kansas City, MO – these don’t report victim race. Also omit Tulsa, AL – this is a data entry mistake. For this problem, limit your analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
+
+```{r}
+homicide =homicide%>% 
+filter(!city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")) %>% 
+  filter(str_detect(victim_race, c("White", "Black"))) %>% 
+  mutate(victim_age =as.numeric(victim_age))%>% 
+  na.omit()
+```
