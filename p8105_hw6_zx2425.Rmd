@@ -18,11 +18,13 @@ library(mgcv)
 set.seed(001)
 ```
 
-#problem2
-Create a _city_state_ variable (e.g. “Baltimore, MD”), and _a binary variable_ indicating whether the homicide is solved. 
+# problem2
+## 2.1 tidy data
+REQUIREMENT:Create a _city_state_ variable (e.g. “Baltimore, MD”), and _a binary variable_ indicating whether the homicide is solved. 
 ```{r}
 homicide = read.csv("./homicide-data.csv") 
 
+summary(homicide$disposition)
 homicide=homicide%>% 
   na.omit() %>% 
   mutate(
@@ -30,36 +32,44 @@ homicide=homicide%>%
   ) %>% 
   mutate(solve_sit = case_when(
     disposition== "Closed by arrest" ~ 1,
-    disposition== "Open/No arrest" ~ 0)) %>% 
- mutate(
-   unsolved = case_when(
-     disposition== "Closed by arrest" ~ 0,
-    disposition== "Open/No arrest" ~ 1))%>% 
+    disposition== "Open/No arrest" ~ 0,
+     disposition== "Closed without arrest" ~ 0)) %>% 
   na.omit() 
-                          
 ```
+Based on the requirement of problem2.1, we give a numerical definition for disposition. However, with recognizing that most of the disposition data including three kinds of description:"Closed by arrest", "Open/No arrest" and "Closed without arrest", We consider the first as resolved event and the others as unresolved event.
 
-
-
-Omit cities Dallas, TX; Phoenix, AZ; and Kansas City, MO – these don’t report victim race. Also omit Tulsa, AL – this is a data entry mistake. For this problem, limit your analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
+REQUIREMENT:Omit cities Dallas, TX; Phoenix, AZ; and Kansas City, MO – these don’t report victim race. Also omit Tulsa, AL – this is a data entry mistake. For this problem, limit your analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
 
 ```{r}
 homicide =homicide%>% 
 filter(!city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")) %>% 
-  filter(str_detect(victim_race, c("White", "Black"))) %>% 
-  mutate(victim_age =as.numeric(victim_age))%>% 
+  filter(str_detect(victim_race, c("White", "Black"),victim_age != "Unknown")) %>% 
+  mutate(
+    victim_age = as.numeric(victim_age),
+    victim_race = as.factor(victim_race)
+    )%>% 
   na.omit()
 ```
+Based on the requirements for the cit_state and race, we finally obtain the results data: _homicide_ 
 
-For the city of Baltimore, MD, use the glm function to fit a logistic regression with _resolved vs unresolved_ as the outcome and _victim_ _age_, _sex_ and _race_ as predictors. Save the output of glm as an R object; 
+## 2.1 build linear regression model
+REQUIREMENT:For the city of Baltimore, MD, use the glm function to fit a logistic regression with _resolved vs unresolved_ as the outcome and _victim_ _age_, _sex_ and _race_ as predictors. 
 ```{r}
 data_B= filter(homicide,city_state=="Baltimore,MD")
 data_B_model = data_B%>% 
   glm(solve_sit ~ victim_age + victim_race + victim_sex, data = ., family = binomial())
-
+```
+REQUIRMENT:Save the output of glm as an R object; 
+```{r}
+save(data_B_model, file = "./data_B_model.RData")
+data_B_model
+```
+REQUIREMENT:apply the _broom::tidy_ to this object; and obtain the _estimate_ and _confidence interval_ of the adjusted odds ratio for solving homicides comparing male victims to female victims keeping all other variables fixed.
+```{r}
 data_B_model %>% 
   broom::tidy(conf.int = TRUE) %>% 
-  mutate(OR = exp(estimate), 
+  mutate(
+  OR = exp(estimate), 
   conf_low=exp(estimate-1.96*std.error), 
   conf_high=exp(estimate+1.96*std.error)
   ) %>%
@@ -68,7 +78,11 @@ data_B_model %>%
 ##
 exp(summary(data_B_model)$coefficients["victim_sexMale",1] + qnorm(c(0.025,0.5,0.975)) * summary(data_B_model)$coefficients["victim_sexMale",2])
 ```
-Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot.
+
+
+
+REQUIREMENT:Now run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing male victims to female victims. 
+Do this within a “tidy” pipeline, making use of purrr::map, list columns, and unnest as necessary to create a dataframe with estimated ORs and CIs for each city.
 ```{r}
 all_city_model = 
   homicide %>%
@@ -86,6 +100,7 @@ all_city_model =
   select(city_state,term, log_OR = estimate, OR, p.value, conf_low, conf_high) %>% 
   filter(term == "victim_sexMale")
 ```
+REQUIREMENT:Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot
 ```{r}
 all_city_model%>%
   mutate(
@@ -99,13 +114,9 @@ all_city_model%>%
        y="Odds_ratio"
          )
 ```
-
+???
 #problem3
 Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
-
-Propose a _regression model_ for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model _residuals against fitted values_ – _use add_predictions_ and _add_residuals_ in making this plot.
-
-
 ## 3.0 reclaim data
 ```{r}
 data_bw <- read.csv("./birthweight.csv")%>% 
@@ -117,7 +128,7 @@ data_bw <- read.csv("./birthweight.csv")%>%
     mrace = factor(mrace)
     )
 ```
-
+Propose a _regression model_ for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. 
 ## 3.1 variables visualization
 
 ### 3.1.1 dependent variable visual
@@ -159,7 +170,7 @@ fit_headlength %>%
   broom::glance()%>% 
   broom::tidy()
 ```
-
+Describe your modeling process and show a plot of model _residuals against fitted values_ – _use add_predictions_ and _add_residuals_ in making this plot.
 ## 3.3 diagnosis for linear regression model 
 ```{r}
 data_bw %>% 
@@ -174,6 +185,9 @@ data_bw %>%
   )
   
 ```
+First, we verified the assumption that the variables basically satisfy the normal distribution. Next, we drew a scatter diagram of the variables in pairs to observe whether the two independent variables have an impact on the dependent variable, and roughly estimate whether the impact is positive or negative.Further, we performed multiple linear regression and finally got the linear model.
+
+From the residuals vs fitted value graph, we can see that, first of all, the data satisfies a symmetrical distribution around 0. But as the fitted value increases, the data becomes more dense. This shows that there are outliers in the fitted value.
 
 ## 3.4 manipulate three models and get the results
 Compare your model to two others:
@@ -224,4 +238,4 @@ cv_df %>%
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
-we can see the first model are the best among three models.
+From the violin box plot, we can easily see that model_bl and model_all have smaller rmse than model_lg. This shows that model_bl, model_all are better than model model_lg.
