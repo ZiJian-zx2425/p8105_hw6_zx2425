@@ -8,16 +8,14 @@ output: github_document
 library(tidyverse)
 library(patchwork)
 library(p8105.datasets)
-```
-
-#let's begin
-```{r}
 library(tidyverse)
 library(modelr)
 library(mgcv)
 ```
+
+#let's begin
 ```{r}
-set.seed(1)
+set.seed(001)
 ```
 
 #problem2
@@ -105,7 +103,10 @@ all_city_model%>%
 #problem3
 Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
 
-Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
+Propose a _regression model_ for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model _residuals against fitted values_ – _use add_predictions_ and _add_residuals_ in making this plot.
+
+
+## 3.0 reclaim data
 ```{r}
 data_bw <- read.csv("./birthweight.csv")%>% 
   na.omit() %>% 
@@ -115,11 +116,71 @@ data_bw <- read.csv("./birthweight.csv")%>%
     malform = as.factor(malform),
     mrace = factor(mrace)
     )
-  
-data_bw %>% 
-  ggplot(aes(x = bhead, y = bwt)) + 
-  geom_point(alpha = .5)+
-  ylab("Baby weight at birth") +
-  xlab("Baby head circumference at birth") +
-  labs(title = "plot of baby weight vs baby head circumference at birth")
 ```
+
+## 3.1 variables visualization
+
+### 3.1.1 dependent variable visual
+```{r}
+density_bwt <- data_bw %>% 
+  ggplot(aes(x = bwt)) + 
+  geom_histogram()
+density_bwt
+```
+From the plot, we can roughly assume that the distribution of bwt follows normal distribution.
+
+### 3.1.2 Independent variable visual
+
+```{r}
+density_bhead <- data_bw %>% 
+  ggplot(aes(x = bhead)) + 
+  geom_histogram()
+density_blength <- data_bw %>% 
+  ggplot(aes(x = blength)) + 
+  geom_histogram()
+density_bhead+density_blength
+```
+From the density distribution plot, we can see that the distribution of bhead variable and blength variable is normal. Thus, we can directly put them into our linear regression model.
+
+## 3.1.3 the relation ship among varaibles
+```{r}
+data_bw1=data_bw %>% 
+  select(bwt,bhead,blength)
+plot(data_bw1)
+```
+From the plot, we can be sure that there is relationship between bwt and blength and the same for bhead. So next step, we can use linear regression model to get the further development,
+
+## 3.2 linear regression
+```{r}
+set.seed(002)
+fit_headlength = lm(bwt ~ bhead+blength, data = data_bw)
+summary(fit_headlength)
+fit_headlength %>% 
+  broom::glance()%>% 
+  broom::tidy()
+```
+
+## 3.3 diagnosis for linear regression model 
+```{r}
+data_bw %>% 
+  modelr::add_residuals(fit_headlength) %>% 
+  modelr::add_predictions(fit_headlength) %>%
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point()+
+  labs(
+   title="head-lengh of residual vs fitted value",
+   y="Residual" ,
+   x="fitted value"
+  )
+  
+```
+
+Compare your model to two others:
+
+One using length at birth and gestational age as predictors (main effects only)
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+```{r}
+
+```
+
