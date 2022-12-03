@@ -90,6 +90,7 @@ data_B_model %>%
   select(term, log_OR = estimate, OR, p.value, conf_low, conf_high) %>% 
   knitr::kable(digits = 3)
 ```
+
 REQUIREMENT:Now run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing male victims to female victims. 
 Do this within a “tidy” pipeline, making use of purrr::map, list columns, and unnest as necessary to create a dataframe with estimated ORs and CIs for each city.
 
@@ -102,7 +103,6 @@ all_city_model =
   mutate(
     logmodel = map(data, ~glm(solve_sit~victim_age + victim_race + victim_sex, data = ., family = binomial())),
  result = map(.x=logmodel, ~broom::tidy(.x,conf.int = TRUE))) %>% 
-  
   select(-data,-logmodel)%>% 
   unnest(result)%>% 
   mutate(
@@ -110,23 +110,29 @@ all_city_model =
     conf_low=exp(estimate+qnorm(0.05)*std.error), 
     conf_high=exp(estimate+qnorm(0.95)*std.error)
     ) %>%
-  select(city_state,term, log_OR = estimate, OR, p.value, conf_low, conf_high) 
+   filter(term=="victim_sexMale") %>% 
+  select(city_state, OR,conf_low, conf_high) 
 ```
 REQUIREMENT:Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot
 ```{r}
 all_city_model%>%
-  mutate(
+  mutate( 
     city_state = fct_reorder(city_state, OR)
   ) %>%
-  ggplot(aes(x = OR, y = city_state)) +
+  ggplot(aes(x = city_state, y = OR )) +
   geom_point() +
-  geom_errorbar(aes(xmin = conf_low, xmax = conf_high)) +
+  geom_errorbar(aes(ymin = conf_low, ymax = conf_high)) +
   labs(title = "OR of solved cases for male and female victims",
-       x="City_state",
-       y="Odds_ratio"
-         )
+       x="Odds.ratio",
+       y="City-states"
+         )+
+  theme(
+    title=element_text(size=9),
+    axis.text.x.bottom = element_text(angle=45, hjust=1)
+  )
 ```
-???
+
+Execute the function on the data of each city, and calculate the corresponding OR and its CI. Then we sort and draw the image according to the value of OR
 #problem3
 Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
 ## 3.0 reclaim data
@@ -140,6 +146,7 @@ data_bw <- read.csv("./birthweight.csv")%>%
     mrace = factor(mrace)
     )
 ```
+
 Propose a _regression model_ for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. 
 ## 3.1 variables visualization
 
@@ -150,6 +157,7 @@ density_bwt <- data_bw %>%
   geom_histogram()
 density_bwt
 ```
+
 From the plot, we can roughly assume that the distribution of bwt follows normal distribution.
 
 ### 3.1.2 Independent variable visual
@@ -163,6 +171,7 @@ density_blength <- data_bw %>%
   geom_histogram()
 density_bhead+density_blength
 ```
+
 From the density distribution plot, we can see that the distribution of bhead variable and blength variable is normal. Thus, we can directly put them into our linear regression model.
 
 ## 3.1.3 the relation ship among varaibles
@@ -171,6 +180,7 @@ data_bw1=data_bw %>%
   select(bwt,bhead,blength)
 plot(data_bw1)
 ```
+
 From the plot, we can be sure that there is relationship between bwt and blength and the same for bhead. So next step, we can use linear regression model to get the further development,
 
 ## 3.2 linear regression
@@ -182,6 +192,7 @@ fit_headlength %>%
   broom::glance()%>% 
   broom::tidy()
 ```
+
 Describe your modeling process and show a plot of model _residuals against fitted values_ – _use add_predictions_ and _add_residuals_ in making this plot.
 ## 3.3 diagnosis for linear regression model 
 ```{r}
@@ -197,6 +208,7 @@ data_bw %>%
   )
   
 ```
+
 First, we verified the assumption that the variables basically satisfy the normal distribution. Next, we drew a scatter diagram of the variables in pairs to observe whether the two independent variables have an impact on the dependent variable, and roughly estimate whether the impact is positive or negative.Further, we performed multiple linear regression and finally got the linear model.
 
 From the residuals vs fitted value graph, we can see that, first of all, the data satisfies a symmetrical distribution around 0. But as the fitted value increases, the data becomes more dense. This shows that there are outliers in the fitted value.
@@ -250,4 +262,5 @@ cv_df %>%
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
-From the violin box plot, we can easily see that model_bl and model_all have smaller rmse than model_lg. This shows that model_bl, model_all are better than model model_lg.
+
+From the violin box plot, we can easily see that model_bl and model_all have smaller rmse than model_lg. And model_bl has the almost best performance in all ways. This might because our model_bl and model_lg have more " useful" varaibles for prediction.
